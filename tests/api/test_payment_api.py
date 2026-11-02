@@ -11,9 +11,14 @@ from application.api.main import app
 
 
 @pytest.fixture
-def client():
-    """Create an HTTP test client for the MiniPay application."""
-    with TestClient(app) as test_client:
+def client(monkeypatch):
+    """Create an authenticated test client."""
+    monkeypatch.setenv("MINIPAY_API_KEY", "test-merchant-key")
+
+    with TestClient(
+        app,
+        headers={"X-API-Key": "test-merchant-key"},
+    ) as test_client:
         yield test_client
 
 
@@ -174,3 +179,26 @@ def test_invalid_payment_amount(client):
     )
 
     assert response.status_code == 422
+
+
+def test_payment_rejects_missing_api_key(monkeypatch):
+    """Requests without an API key should be rejected."""
+    monkeypatch.setenv("MINIPAY_API_KEY", "test-merchant-key")
+
+    with TestClient(app) as unauthenticated_client:
+        response = unauthenticated_client.get("/api/payments/1")
+
+    assert response.status_code == 401
+
+
+def test_payment_rejects_invalid_api_key(monkeypatch):
+    """Requests with an incorrect API key should be rejected."""
+    monkeypatch.setenv("MINIPAY_API_KEY", "test-merchant-key")
+
+    with TestClient(
+        app,
+        headers={"X-API-Key": "wrong-key"},
+    ) as unauthenticated_client:
+        response = unauthenticated_client.get("/api/payments/1")
+
+    assert response.status_code == 401
