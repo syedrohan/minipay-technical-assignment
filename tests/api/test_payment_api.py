@@ -1,6 +1,6 @@
 
 """Integration tests for MiniPay customer and payment APIs."""
-
+from application.api.database import get_db
 from decimal import Decimal
 from uuid import uuid4
 from application.api.database import SessionLocal
@@ -244,12 +244,15 @@ def test_search_unknown_transaction_reference(client):
 
 
 
+
 def test_search_duplicate_reference_returns_latest_payment(client):
     """Verify search returns the latest matching database record."""
     customer = create_test_customer(client)
     transaction_ref = f"TXN-{uuid4().hex[:12]}"
 
-    with SessionLocal() as db:
+    db = next(app.dependency_overrides[get_db]())
+
+    try:
         first = Transaction(
             transaction_ref=transaction_ref,
             customer_id=customer["id"],
@@ -267,10 +270,12 @@ def test_search_duplicate_reference_returns_latest_payment(client):
 
         db.add_all([first, second])
         db.commit()
-        db.refresh(first)
         db.refresh(second)
 
         latest_payment_id = second.id
+
+    finally:
+        db.close()
 
     response = client.get(
         f"/api/payments/search/{transaction_ref}"
@@ -279,4 +284,3 @@ def test_search_duplicate_reference_returns_latest_payment(client):
     assert response.status_code == 200
     assert response.json()["id"] == latest_payment_id
     assert Decimal(response.json()["amount"]) == Decimal("200.00")
-
