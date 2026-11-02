@@ -129,3 +129,34 @@ def get_customer_payments(
     )
 
     return list(db.scalars(statement).all())
+
+
+
+
+@router.get(
+    "/payments/search/{transaction_ref}",
+    response_model=PaymentResponse,
+)
+def search_payment(
+    transaction_ref: str,
+    db: Session = Depends(get_db),
+):
+    """Find the latest payment matching a transaction reference."""
+
+    statement = (
+        select(Transaction)
+        .where(Transaction.transaction_ref == transaction_ref)
+        .order_by(Transaction.id.desc())
+        .limit(1)
+    )
+
+    payment = db.scalar(statement)
+
+    if payment is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Payment not found",
+        )
+
+    return payment
+
