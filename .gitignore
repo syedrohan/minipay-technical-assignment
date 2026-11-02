@@ -1,0 +1,40 @@
+
+# Python cache and compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# Test and coverage reports
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+
+# Linting and type-checking caches
+.ruff_cache/
+.mypy_cache/
+
+# Playwright test output
+test-results/
+playwright-report/
+
+# Logs
+*.log
+
+# Operating system files
+.DS_Store
+Thumbs.db
+
+# IDE settings
+.vscode/
+.idea/
