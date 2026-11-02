@@ -1,0 +1,18 @@
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "F",   # Pyflakes errors
+    "I",   # Import sorting
+    "B",   # Common bug patterns
+    "UP",  # Python upgrade suggestions
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-ra"
