@@ -1,0 +1,89 @@
+
+name: MiniPay CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+
+jobs:
+  database-smoke-test:
+    name: PostgreSQL schema and seed validation
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: minipay
+          POSTGRES_PASSWORD: minipay_test_password
+          POSTGRES_DB: minipay
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U minipay -d minipay"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      PGHOST: localhost
+      PGPORT: 5432
+      PGUSER: minipay
+      PGPASSWORD: minipay_test_password
+      PGDATABASE: minipay
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Validate Python generator syntax
+        run: python -m py_compile sql/generate_data.py
+
+      - name: Apply database schema
+        run: |
+          psql -v ON_ERROR_STOP=1 -f sql/schema.sql
+
+      - name: Generate synthetic data
+        run: |
+          python sql/generate_data.py > seed.sql
+
+      - name: Load synthetic data
+        run: |
+          psql -v ON_ERROR_STOP=1 -f seed.sql
+
+      - name: Verify database records
+        run: |
+          psql -v ON_ERROR_STOP=1 <<'SQL'
+          DO $$
+          DECLARE
+              customer_count BIGINT;
+              transaction_count BIGINT;
+          BEGIN
+              SELECT COUNT(*) INTO customer_count FROM customers;
+              SELECT COUNT(*) INTO transaction_count FROM transactions;
+
+              IF customer_count <> 1000 THEN
+                  RAISE EXCEPTION 'Expected 1000 customers, found %', customer_count;
+              END IF;
+
+              IF transaction_count <> 50000 THEN
+                  RAISE EXCEPTION 'Expected 50000 transactions, found %', transaction_count;
+              END IF;
+
+              RAISE NOTICE 'Database validation passed: % customers, % transactions',
+                  customer_count, transaction_count;
+          END $$;
+          SQL
