@@ -265,3 +265,22 @@ jobs:
             kubernetes/database.yaml \
             kubernetes/starter-deployment.yaml
 
+  linux-system-investigation:
+    name: Linux System Investigation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Collect Linux system evidence
+        run: |
+          bash evidence/linux-investigation.sh
+
+      - name: Upload Linux investigation evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-investigation-evidence
+          path: linux-investigation.txt
+          if-no-files-found: error
+
