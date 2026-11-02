@@ -265,13 +265,73 @@ jobs:
             kubernetes/database.yaml \
             kubernetes/starter-deployment.yaml
 
+
   linux-system-investigation:
     name: Linux System Investigation
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: minipay
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d minipay"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/minipay
+      MINIPAY_API_KEY: test-merchant-key
+      PYTHONPATH: .
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install application dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Initialize database
+        run: |
+          PGPASSWORD=postgres psql \
+            -h localhost \
+            -U postgres \
+            -d minipay \
+            -f sql/schema.sql
+
+      - name: Start MiniPay API
+        run: |
+          nohup uvicorn application.api.main:app \
+            --host 127.0.0.1 \
+            --port 8000 \
+            > /tmp/minipay-api.log 2>&1 &
+
+      - name: Wait for MiniPay health check
+        run: |
+          for attempt in {1..20}; do
+            if curl -fsS http://127.0.0.1:8000/health; then
+              echo "MiniPay API is healthy."
+              exit 0
+            fi
+            sleep 3
+          done
+
+          echo "MiniPay API failed to become healthy."
+          cat /tmp/minipay-api.log
+          exit 1
 
       - name: Collect Linux system evidence
         run: |
