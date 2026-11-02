@@ -3,7 +3,7 @@
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 from application.api.auth import require_api_key
 from application.api.database import get_db
@@ -137,6 +137,11 @@ def get_customer_payments(
     "/payments/search/{transaction_ref}",
     response_model=PaymentResponse,
 )
+
+@router.get(
+    "/payments/search/{transaction_ref}",
+    response_model=PaymentResponse,
+)
 def search_payment(
     transaction_ref: str,
     db: Session = Depends(get_db),
@@ -150,7 +155,13 @@ def search_payment(
         .limit(1)
     )
 
-    payment = db.scalar(statement)
+    try:
+        payment = db.scalar(statement)
+    except SQLAlchemyError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Payment search is temporarily unavailable",
+        ) from None
 
     if payment is None:
         raise HTTPException(
@@ -159,4 +170,5 @@ def search_payment(
         )
 
     return payment
+
 
