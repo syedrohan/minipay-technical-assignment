@@ -92,9 +92,11 @@ jobs:
           pip install -r requirements.txt
 
    
-      - name: Run database schema tests
+
+      - name: Run database and API tests
         env:
           DATABASE_URL: postgresql+psycopg://minipay:minipay_test_password@localhost:5432/minipay
           PYTHONPATH: ${{ github.workspace }}
         run: |
-          python -m pytest tests/api/test_database_schema.py -v
+          python -m pytest tests/api/ -v
+
