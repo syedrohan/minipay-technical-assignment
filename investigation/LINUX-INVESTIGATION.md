@@ -82,18 +82,19 @@ The logs showed the hosted compute agent starting the GitHub Actions runner and 
 No production application logs were available in this environment.
 
 ## 9. MiniPay Health Check
+The Linux CI job starts PostgreSQL, initializes the database schema, and launches the MiniPay API on port 8000 before running the investigation script.
 
-The investigation attempted:
+The health endpoint was checked using:
 
 ```bash
 curl -sS --max-time 5 http://127.0.0.1:8000/health
 ```
 
-Result: Connection refused.
+**Result:** The health check passed successfully in GitHub Actions.
 
-**Explanation:** The MiniPay API was not started in this particular CI job. Therefore, the failed health check is expected and does not establish an application failure.
+**Finding:** MiniPay was reachable on localhost and its health endpoint responded successfully after startup. This confirms the API could connect to its configured database in the CI environment.
 
-A separate integration health-check step should start the API before checking this endpoint.
+The earlier connection-refused result came from the initial investigation job, where the API was not running. The updated CI job resolves that limitation.
 
 ## 10. Operational Troubleshooting Guide
 
