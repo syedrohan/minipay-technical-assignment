@@ -1,0 +1,173 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MiniPay Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 850px;
+            margin: 30px auto;
+            padding: 0 20px;
+            background: #f4f6f8;
+            color: #222;
+        }
+
+        h1 { text-align: center; }
+
+        section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+        }
+
+        input, button {
+            display: block;
+            width: 100%;
+            box-sizing: border-box;
+            padding: 10px;
+            margin: 10px 0;
+        }
+
+        button {
+            background: #1769aa;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        button:hover { background: #0d4f85; }
+
+        pre {
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+            background: #eef1f4;
+            padding: 12px;
+            border-radius: 4px;
+        }
+
+        .error { color: #b00020; }
+    </style>
+</head>
+<body>
+    <h1>MiniPay Dashboard</h1>
+
+    <section>
+        <h2>API Configuration</h2>
+        <input id="apiKey" type="password" placeholder="Enter merchant API key">
+        <p>Use the API key configured for your environment.</p>
+    </section>
+
+    <section>
+        <h2>Create Customer</h2>
+        <input id="customerRef" placeholder="Customer reference">
+        <input id="customerName" placeholder="Customer name">
+        <button onclick="createCustomer()">Create Customer</button>
+        <pre id="customerResult">Customer response will appear here.</pre>
+    </section>
+
+    <section>
+        <h2>Submit Payment</h2>
+        <input id="customerId" type="number" placeholder="Customer ID">
+        <input id="transactionRef" placeholder="Transaction reference">
+        <input id="amount" type="number" min="0.01" step="0.01"
+               placeholder="Payment amount">
+        <button onclick="createPayment()">Submit Payment</button>
+        <pre id="paymentResult">Payment response will appear here.</pre>
+    </section>
+
+    <section>
+        <h2>Search Transaction</h2>
+        <input id="paymentId" type="number" placeholder="Payment ID">
+        <button onclick="searchPayment()">Search Payment</button>
+        <pre id="searchResult">Transaction details will appear here.</pre>
+    </section>
+
+    <script>
+        const API_BASE = "/api";
+
+        async function apiRequest(path, method = "GET", body = null) {
+            const apiKey = document.getElementById("apiKey").value.trim();
+
+            const options = {
+                method,
+                headers: {
+                    "X-API-Key": apiKey
+                }
+            };
+
+            if (body !== null) {
+                options.headers["Content-Type"] = "application/json";
+                options.body = JSON.stringify(body);
+            }
+
+            const response = await fetch(`${API_BASE}${path}`, options);
+            const data = await response.json().catch(() => ({
+                detail: "The server returned an unreadable response."
+            }));
+
+            if (!response.ok) {
+                throw new Error(
+                    `HTTP ${response.status}: ${JSON.stringify(data)}`
+                );
+            }
+
+            return data;
+        }
+
+        function showResult(elementId, data, isError = false) {
+            const element = document.getElementById(elementId);
+            element.textContent = typeof data === "string"
+                ? data
+                : JSON.stringify(data, null, 2);
+            element.className = isError ? "error" : "";
+        }
+
+        async function createCustomer() {
+            try {
+                const data = await apiRequest("/customers", "POST", {
+                    customer_ref: document.getElementById("customerRef").value.trim(),
+                    name: document.getElementById("customerName").value.trim()
+                });
+
+                showResult("customerResult", data);
+            } catch (error) {
+                showResult("customerResult", error.message, true);
+            }
+        }
+
+        async function createPayment() {
+            try {
+                const data = await apiRequest("/payments", "POST", {
+                    customer_id: Number(document.getElementById("customerId").value),
+                    transaction_ref: document.getElementById("transactionRef").value.trim(),
+                    amount: Number(document.getElementById("amount").value)
+                });
+
+                showResult("paymentResult", data);
+            } catch (error) {
+                showResult("paymentResult", error.message, true);
+            }
+        }
+
+        async function searchPayment() {
+            try {
+                const paymentId = document.getElementById("paymentId").value.trim();
+
+                if (!paymentId) {
+                    throw new Error("Please enter a payment ID.");
+                }
+
+                const data = await apiRequest(`/payments/${paymentId}`);
+                showResult("searchResult", data);
+            } catch (error) {
+                showResult("searchResult", error.message, true);
+            }
+        }
+    </script>
+</body>
+</html>
