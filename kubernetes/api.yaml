@@ -20,7 +20,6 @@ metadata:
   namespace: minipay
 type: Opaque
 stringData:
-  DATABASE_URL: postgresql+psycopg://minipay:CHANGE_ME@minipay-db:5432/minipay
   MINIPAY_API_KEY: CHANGE_ME
 ---
 apiVersion: apps/v1
@@ -45,11 +44,25 @@ spec:
           ports:
             - name: http
               containerPort: 8080
-          envFrom:
-            - configMapRef:
-                name: minipay-api-config
-            - secretRef:
-                name: minipay-api-secret
+         envFrom:
+  - configMapRef:
+      name: minipay-api-config
+
+env:
+  - name: DB_PASSWORD
+    valueFrom:
+      secretKeyRef:
+        name: minipay-db-secret
+        key: POSTGRES_PASSWORD
+
+  - name: DATABASE_URL
+    value: "postgresql+psycopg://postgres:$(DB_PASSWORD)@minipay-db:5432/minipay"
+
+  - name: MINIPAY_API_KEY
+    valueFrom:
+      secretKeyRef:
+        name: minipay-api-secret
+        key: MINIPAY_API_KEY
           readinessProbe:
             httpGet:
               path: /health
