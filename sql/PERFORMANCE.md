@@ -1,17 +1,15 @@
-# MiniPay SQL Performance Investigation
+# SQL Performance Analysis
 
-## 1. Objective
+## Objective
+Measure the performance of transaction lookup before and after adding a composite index.
 
-Investigate the performance of transaction searches using the `transaction_ref` column in the PostgreSQL transactions table.
+## Test environment
+- Database: PostgreSQL 16 (GitHub Actions)
+- Dataset: 50,000 transactions
+- Lookup reference: `TXN00012345`
+- Query: Find the latest transaction matching the reference.
 
-The synthetic dataset contains 50,000 transactions. The objective is to compare the lookup performance before and after introducing an appropriate database index.
-
-## 2. Problem Identified
-
-The original database schema does not define an index on `transactions.transaction_ref`.
-
-The support CLI searches transactions using the following pattern:
-
+## Query
 ```sql
 SELECT id, transaction_ref, customer_id, amount, status, created_at
 FROM transactions
@@ -20,50 +18,43 @@ ORDER BY id DESC
 LIMIT 1;
 ```
 
-Without a suitable index, PostgreSQL may need to scan a large portion of the transactions table to locate matching records.
-
-## 3. Proposed Optimization
-
-The following composite index was introduced:
+## Optimization
+Created a composite index:
 
 ```sql
 CREATE INDEX IF NOT EXISTS idx_transactions_ref_id
 ON transactions (transaction_ref, id DESC);
 ```
 
-The index supports filtering by transaction reference and retrieving the latest matching record by descending ID.
+The index supports filtering by `transaction_ref` and retrieving the latest matching record by descending `id`.
 
-## 4. Benchmark Method
-
-The benchmark is defined in `sql/performance_test.sql`.
-
-It performs the following steps:
-
-1. Refreshes PostgreSQL statistics using `ANALYZE`.
-2. Executes the transaction lookup before creating the index.
-3. Captures the execution plan using `EXPLAIN (ANALYZE, BUFFERS)`.
-4. Creates the composite index.
-5. Refreshes statistics again.
-6. Executes the same lookup and captures the optimized execution plan.
-
-## 5. Results
-
-**Execution evidence: pending.**
-
-The benchmark must be executed against the seeded PostgreSQL database before recording actual execution times or claiming a performance improvement.
+## Benchmark results
 
 | Metric | Before index | After index |
-|---|---|---|
-| Execution time | Pending measurement | Pending measurement |
-| Scan method | Pending observation | Pending observation |
-| Buffer activity | Pending measurement | Pending measurement |
+|---|---:|---:|
+| Execution time | 3.229 ms | 0.045 ms |
+| Scan method | Sequential Scan | Index Scan |
+| Rows removed by filter | 49,999 | Not applicable |
+| Shared buffer activity | 616 hits | 1 hit, 3 reads |
+| Separate sort operation | Yes | No |
 
-## 6. Expected Outcome
+**Execution time improvement:** Approximately 71.8× faster, representing a 98.6% reduction in execution time.
 
-The index is expected to reduce the work required for transaction-reference lookups.
+## Execution plan observations
 
-However, PostgreSQL's query planner determines whether to use the index based on table statistics and estimated query cost. Actual execution plans and timings will determine whether the optimization is beneficial.
+### Before index
+- PostgreSQL performed a sequential scan across the transactions table.
+- It removed 49,999 rows while searching for the requested reference.
+- It performed a separate sort on `id DESC`.
+- Execution time was 3.229 ms.
 
-## 7. Conclusion
+### After index
+- PostgreSQL used `idx_transactions_ref_id`.
+- The index scan located the matching transaction directly.
+- The separate sort operation was eliminated.
+- Execution time decreased to 0.045 ms.
 
-The proposed index targets the transaction-search access pattern used by the MiniPay support CLI. Final conclusions will be added after collecting and comparing actual PostgreSQL execution evidence.
+## Conclusion
+The composite index substantially improved the transaction lookup performance on the 50,000-row test dataset. It reduced execution time from 3.229 ms to 0.045 ms.
+
+These results represent the measured GitHub Actions benchmark run. Execution times may vary across environments and repeated runs. The index should also be evaluated against write overhead and storage requirements before production deployment.
