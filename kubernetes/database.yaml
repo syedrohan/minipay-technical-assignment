@@ -40,7 +40,6 @@ spec:
                 secretKeyRef:
                   name: minipay-db-secret
                   key: POSTGRES_PASSWORD
-     
           readinessProbe:
             exec:
               command:
