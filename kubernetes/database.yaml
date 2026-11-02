@@ -1,0 +1,100 @@
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: minipay-db-pvc
+  namespace: minipay
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: minipay-db
+  namespace: minipay
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: minipay-db
+  template:
+    metadata:
+      labels:
+        app: minipay-db
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_DB
+              value: minipay
+            - name: POSTGRES_USER
+              value: minipay
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: minipay-db-secret
+                  key: POSTGRES_PASSWORD
+     
+          readinessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - minipay
+                - -d
+                - minipay
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          livenessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - minipay
+                - -d
+                - minipay
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              cpu: 1
+              memory: 1Gi
+          volumeMounts:
+            - name: postgres-storage
+              mountPath: /var/lib/postgresql/data
+      volumes:
+        - name: postgres-storage
+          persistentVolumeClaim:
+            claimName: minipay-db-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: minipay-db
+  namespace: minipay
+spec:
+  selector:
+    app: minipay-db
+  ports:
+    - port: 5432
+      targetPort: 5432
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: minipay-db-secret
+  namespace: minipay
+type: Opaque
+stringData:
+  POSTGRES_PASSWORD: CHANGE_ME
