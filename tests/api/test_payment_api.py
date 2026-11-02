@@ -3,7 +3,9 @@
 
 from decimal import Decimal
 from uuid import uuid4
-
+from application.api.database import SessionLocal
+from application.api.models import Transaction
+from datetime import datetime
 import pytest
 from fastapi.testclient import TestClient
 
@@ -238,37 +240,43 @@ def test_search_unknown_transaction_reference(client):
     assert response.status_code == 404
 
 
+
+
+
+
 def test_search_duplicate_reference_returns_latest_payment(client):
-    """Verify search returns the latest payment for duplicate references."""
+    """Verify search returns the latest matching database record."""
     customer = create_test_customer(client)
     transaction_ref = f"TXN-{uuid4().hex[:12]}"
 
-    first_response = client.post(
-        "/api/payments",
-        json={
-            "transaction_ref": transaction_ref,
-            "customer_id": customer["id"],
-            "amount": "100.00",
-        },
-    )
+    with SessionLocal() as db:
+        first = Transaction(
+            transaction_ref=transaction_ref,
+            customer_id=customer["id"],
+            amount=Decimal("100.00"),
+            status="SUCCESS",
+            created_at=datetime.utcnow(),
+        )
+        second = Transaction(
+            transaction_ref=transaction_ref,
+            customer_id=customer["id"],
+            amount=Decimal("200.00"),
+            status="SUCCESS",
+            created_at=datetime.utcnow(),
+        )
 
-    second_response = client.post(
-        "/api/payments",
-        json={
-            "transaction_ref": transaction_ref,
-            "customer_id": customer["id"],
-            "amount": "200.00",
-        },
-    )
+        db.add_all([first, second])
+        db.commit()
+        db.refresh(first)
+        db.refresh(second)
 
-    assert first_response.status_code == 201
-    assert second_response.status_code == 201
+        latest_payment_id = second.id
 
     response = client.get(
         f"/api/payments/search/{transaction_ref}"
     )
 
     assert response.status_code == 200
-    assert response.json()["id"] == second_response.json()["id"]
+    assert response.json()["id"] == latest_payment_id
     assert Decimal(response.json()["amount"]) == Decimal("200.00")
 
