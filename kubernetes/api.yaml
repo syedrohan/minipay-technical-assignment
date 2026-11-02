@@ -1,0 +1,87 @@
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: minipay
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: minipay-api-config
+  namespace: minipay
+data:
+  DB_HOST: minipay-db
+  DB_PORT: "5432"
+  DB_NAME: minipay
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: minipay-api-secret
+  namespace: minipay
+type: Opaque
+stringData:
+  DATABASE_URL: postgresql+psycopg://minipay:CHANGE_ME@minipay-db:5432/minipay
+  MINIPAY_API_KEY: CHANGE_ME
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: minipay-api
+  namespace: minipay
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: minipay-api
+  template:
+    metadata:
+      labels:
+        app: minipay-api
+    spec:
+      containers:
+        - name: api
+          image: minipay-api:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: minipay-api-config
+            - secretRef:
+                name: minipay-api-secret
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: minipay-api
+  namespace: minipay
+spec:
+  selector:
+    app: minipay-api
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+      protocol: TCP
+  type: ClusterIP
