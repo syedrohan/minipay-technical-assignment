@@ -5,8 +5,9 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
-
+from application.api.auth import require_api_key
 from application.api.database import get_db
+
 from application.api.models import Customer, Transaction
 from application.api.schemas import (
     CustomerCreate,
@@ -21,7 +22,11 @@ from application.api.services import (
     create_payment,
 )
 
-router = APIRouter(prefix="/api", tags=["MiniPay API"])
+router = APIRouter(
+    prefix="/api",
+    tags=["MiniPay API"],
+    dependencies=[Depends(require_api_key)],
+)
 
 
 @router.post(
