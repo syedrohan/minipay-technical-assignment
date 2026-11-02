@@ -138,10 +138,7 @@ def get_customer_payments(
     response_model=PaymentResponse,
 )
 
-@router.get(
-    "/payments/search/{transaction_ref}",
-    response_model=PaymentResponse,
-)
+
 def search_payment(
     transaction_ref: str,
     db: Session = Depends(get_db),
