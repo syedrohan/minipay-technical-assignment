@@ -56,7 +56,7 @@ env:
         key: POSTGRES_PASSWORD
 
   - name: DATABASE_URL
-    value: "postgresql+psycopg://postgres:$(DB_PASSWORD)@minipay-db:5432/minipay"
+value: "postgresql+psycopg://minipay:$(DB_PASSWORD)@minipay-db:5432/minipay"
 
   - name: MINIPAY_API_KEY
     valueFrom:
