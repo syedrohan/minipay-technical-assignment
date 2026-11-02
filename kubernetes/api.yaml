@@ -1,3 +1,4 @@
+
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -44,25 +45,22 @@ spec:
           ports:
             - name: http
               containerPort: 8080
-         envFrom:
-  - configMapRef:
-      name: minipay-api-config
-
-env:
-  - name: DB_PASSWORD
-    valueFrom:
-      secretKeyRef:
-        name: minipay-db-secret
-        key: POSTGRES_PASSWORD
-
-  - name: DATABASE_URL
-value: "postgresql+psycopg://minipay:$(DB_PASSWORD)@minipay-db:5432/minipay"
-
-  - name: MINIPAY_API_KEY
-    valueFrom:
-      secretKeyRef:
-        name: minipay-api-secret
-        key: MINIPAY_API_KEY
+          envFrom:
+            - configMapRef:
+                name: minipay-api-config
+          env:
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: minipay-db-secret
+                  key: POSTGRES_PASSWORD
+            - name: DATABASE_URL
+              value: "postgresql+psycopg://minipay:$(DB_PASSWORD)@minipay-db:5432/minipay"
+            - name: MINIPAY_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: minipay-api-secret
+                  key: MINIPAY_API_KEY
           readinessProbe:
             httpGet:
               path: /health
