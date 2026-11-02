@@ -64,27 +64,27 @@ jobs:
         run: |
           psql -v ON_ERROR_STOP=1 -f seed.sql
 
+     
       - name: Verify database records
         run: |
-          psql -v ON_ERROR_STOP=1 <<'SQL'
-          DO $$
-          DECLARE
-              customer_count BIGINT;
-              transaction_count BIGINT;
-          BEGIN
-              SELECT COUNT(*) INTO customer_count FROM customers;
-              SELECT COUNT(*) INTO transaction_count FROM transactions;
+          CUSTOMER_COUNT=$(psql -tA -c "SELECT COUNT(*) FROM customers")
+          TRANSACTION_COUNT=$(psql -tA -c "SELECT COUNT(*) FROM transactions")
 
-              IF customer_count <> 1000 THEN
-                  RAISE EXCEPTION 'Expected 1000 customers, found %', customer_count;
-              END IF;
+          echo "Customers found: $CUSTOMER_COUNT"
+          echo "Transactions found: $TRANSACTION_COUNT"
 
-              IF transaction_count <> 50000 THEN
-                  RAISE EXCEPTION 'Expected 50000 transactions, found %', transaction_count;
-              END IF;
+          if [ "$CUSTOMER_COUNT" -ne 1000 ]; then
+            echo "ERROR: Expected 1000 customers, found $CUSTOMER_COUNT"
+            exit 1
+          fi
 
-              RAISE NOTICE 'Database validation passed: % customers, % transactions',
-                  customer_count, transaction_count;
+          if [ "$TRANSACTION_COUNT" -ne 50000 ]; then
+            echo "ERROR: Expected 50000 transactions, found $TRANSACTION_COUNT"
+            exit 1
+          fi
+
+          echo "Database validation passed!"
+
         
       - name: Install Python dependencies
         run: |
