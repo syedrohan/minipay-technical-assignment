@@ -94,8 +94,9 @@ jobs:
       - name: Run database schema tests
         env:
           DATABASE_URL: postgresql+psycopg://minipay:minipay_test_password@localhost:5432/minipay
+          PYTHONPATH: ${{ github.workspace }}
         run: |
-          pytest tests/api/test_database_schema.py -v
+          python -m pytest tests/api/test_database_schema.py -v
 
           END $$;
           SQL
