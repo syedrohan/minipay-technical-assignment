@@ -97,6 +97,7 @@ jobs:
         env:
           DATABASE_URL: postgresql+psycopg://minipay:minipay_test_password@localhost:5432/minipay
           PYTHONPATH: ${{ github.workspace }}
+          MINIPAY_API_KEY: test-merchant-key
         run: |
           python -m pytest tests/api/ -v
 
