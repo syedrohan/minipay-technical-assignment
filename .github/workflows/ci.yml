@@ -183,3 +183,63 @@ jobs:
 
       - name: Run CLI unit tests
         run: python -m pytest tests/test_support_tool.py -v
+
+  sql-performance-test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: minipay
+          POSTGRES_PASSWORD: minipay_test_password
+          POSTGRES_DB: minipay
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U minipay -d minipay"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      PGHOST: localhost
+      PGPORT: 5432
+      PGUSER: minipay
+      PGPASSWORD: minipay_test_password
+      PGDATABASE: minipay
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Prepare database
+        run: |
+          psql -v ON_ERROR_STOP=1 -f sql/schema.sql
+          python sql/generate_data.py > seed.sql
+          psql -v ON_ERROR_STOP=1 -f seed.sql
+
+      - name: Run SQL performance benchmark
+        run: |
+          mkdir -p evidence
+          psql -v ON_ERROR_STOP=1 -f sql/performance_test.sql \
+            | tee evidence/sql-performance.txt
+
+      - name: Upload benchmark evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: sql-performance-evidence
+          path: evidence/sql-performance.txt
+
+
+        
