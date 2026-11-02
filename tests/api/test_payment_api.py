@@ -202,3 +202,73 @@ def test_payment_rejects_invalid_api_key(monkeypatch):
         response = unauthenticated_client.get("/api/payments/1")
 
     assert response.status_code == 401
+
+
+
+def test_search_payment_by_transaction_reference(client):
+    """Verify search by transaction reference returns the payment."""
+    customer = create_test_customer(client)
+    transaction_ref = f"TXN-{uuid4().hex[:12]}"
+
+    create_response = client.post(
+        "/api/payments",
+        json={
+            "transaction_ref": transaction_ref,
+            "customer_id": customer["id"],
+            "amount": "500.00",
+        },
+    )
+
+    assert create_response.status_code == 201
+
+    response = client.get(
+        f"/api/payments/search/{transaction_ref}"
+    )
+
+    assert response.status_code == 200
+    assert response.json()["transaction_ref"] == transaction_ref
+
+
+def test_search_unknown_transaction_reference(client):
+    """Verify unknown transaction references return 404."""
+    response = client.get(
+        "/api/payments/search/TXN-DOES-NOT-EXIST"
+    )
+
+    assert response.status_code == 404
+
+
+def test_search_duplicate_reference_returns_latest_payment(client):
+    """Verify search returns the latest payment for duplicate references."""
+    customer = create_test_customer(client)
+    transaction_ref = f"TXN-{uuid4().hex[:12]}"
+
+    first_response = client.post(
+        "/api/payments",
+        json={
+            "transaction_ref": transaction_ref,
+            "customer_id": customer["id"],
+            "amount": "100.00",
+        },
+    )
+
+    second_response = client.post(
+        "/api/payments",
+        json={
+            "transaction_ref": transaction_ref,
+            "customer_id": customer["id"],
+            "amount": "200.00",
+        },
+    )
+
+    assert first_response.status_code == 201
+    assert second_response.status_code == 201
+
+    response = client.get(
+        f"/api/payments/search/{transaction_ref}"
+    )
+
+    assert response.status_code == 200
+    assert response.json()["id"] == second_response.json()["id"]
+    assert Decimal(response.json()["amount"]) == Decimal("200.00")
+
