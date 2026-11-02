@@ -1,5 +1,7 @@
 
 """Integration tests for MiniPay customer and payment APIs."""
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import Session
 from application.api.database import get_db
 from datetime import datetime
 from decimal import Decimal
@@ -294,4 +296,18 @@ def test_search_duplicate_reference_returns_latest_payment(client):
     assert response.status_code == 200
     assert response.json()["id"] == latest_payment_id
     assert Decimal(response.json()["amount"]) == Decimal("200.00")
+
+
+def test_search_database_error_returns_503(client, monkeypatch):
+    """Verify search returns 503 when the database is unavailable."""
+
+    def raise_database_error(*args, **kwargs):
+        raise SQLAlchemyError("simulated database failure")
+
+    monkeypatch.setattr(Session, "scalar", raise_database_error)
+
+    response = client.get("/api/payments/search/TXN-SIMULATED-ERROR")
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == "Payment search is temporarily unavailable"
 
