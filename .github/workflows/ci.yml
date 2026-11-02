@@ -85,5 +85,17 @@ jobs:
 
               RAISE NOTICE 'Database validation passed: % customers, % transactions',
                   customer_count, transaction_count;
+        
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run database schema tests
+        env:
+          DATABASE_URL: postgresql+psycopg://minipay:minipay_test_password@localhost:5432/minipay
+        run: |
+          pytest tests/api/test_database_schema.py -v
+
           END $$;
           SQL
