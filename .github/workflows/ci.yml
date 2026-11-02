@@ -242,4 +242,26 @@ jobs:
           path: evidence/sql-performance.txt
 
 
-        
+  kubernetes-manifest-validation:
+    name: Kubernetes YAML validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install YAML validator
+        run: pip install yamllint
+
+      - name: Validate Kubernetes manifests
+        run: |
+          yamllint -d relaxed \
+            kubernetes/api.yaml \
+            kubernetes/database.yaml \
+            kubernetes/starter-deployment.yaml
+
